@@ -35,6 +35,9 @@ public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
         builder.Property(e => e.Description)
             .HasMaxLength(500);
         
+        builder.Property(e => e.Date)
+            .IsRequired();
+        
         builder.Property(e => e.CreatedAt)
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");

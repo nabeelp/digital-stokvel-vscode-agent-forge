@@ -19,6 +19,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.5" />
   </ItemGroup>
 
+
   <ItemGroup>
     <ProjectReference Include="..\DigitalStokvel.Core\DigitalStokvel.Core.csproj" />
     <ProjectReference Include="..\DigitalStokvel.Infrastructure\DigitalStokvel.Infrastructure.csproj" />

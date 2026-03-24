@@ -88,4 +88,26 @@ public class ContributionRepository : Repository<Contribution>, IContributionRep
             .Where(c => c.MemberId == memberId && c.Status == ContributionStatus.Completed)
             .SumAsync(c => c.Amount, cancellationToken);
     }
+
+    public async Task<decimal> GetTotalContributedAsync(Guid groupId, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Where(c => c.GroupId == groupId && c.Status == ContributionStatus.Completed)
+            .SumAsync(c => c.Amount, cancellationToken);
+    }
+
+    public async Task<Contribution?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(c => c.Member)
+            .Include(c => c.Group)
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+    }
+
+    public async Task<decimal> GetTotalByGroupAsync(Guid groupId, ContributionStatus status, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Where(c => c.GroupId == groupId && c.Status == status)
+            .SumAsync(c => c.Amount, cancellationToken);
+    }
 }

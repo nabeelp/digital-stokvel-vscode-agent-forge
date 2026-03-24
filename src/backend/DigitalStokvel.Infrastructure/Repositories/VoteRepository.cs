@@ -49,4 +49,10 @@ public class VoteRepository : Repository<Vote>, IVoteRepository
             .Where(v => v.Status == VoteStatus.Active && v.VoteDeadline < now)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<VoteRecord> AddRecordAsync(VoteRecord record, CancellationToken cancellationToken = default)
+    {
+        await _context.VoteRecords.AddAsync(record, cancellationToken);
+        return record;
+    }
 }

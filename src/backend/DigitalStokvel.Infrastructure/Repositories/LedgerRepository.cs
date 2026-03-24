@@ -65,4 +65,25 @@ public class LedgerRepository : ILedgerRepository
     {
         return await _dbSet.CountAsync(l => l.GroupId == groupId, cancellationToken);
     }
+
+    public async Task<List<LedgerEntry>> GetByGroupIdPagedAsync(Guid groupId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(l => l.Member)
+            .Where(l => l.GroupId == groupId)
+            .OrderByDescending(l => l.Date)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> GetCountByGroupIdAsync(Guid groupId, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.CountAsync(l => l.GroupId == groupId, cancellationToken);
+    }
+
+    public async Task AddAsync(LedgerEntry entry, CancellationToken cancellationToken = default)
+    {
+        await _dbSet.AddAsync(entry, cancellationToken);
+    }
 }

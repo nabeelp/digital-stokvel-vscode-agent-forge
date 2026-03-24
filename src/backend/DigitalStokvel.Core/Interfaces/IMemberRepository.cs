@@ -15,4 +15,5 @@ public interface IMemberRepository : IRepository<Member>
     Task<IEnumerable<Member>> GetByRoleAsync(Guid groupId, MemberRole role, CancellationToken cancellationToken = default);
     Task<Member?> GetChairpersonAsync(Guid groupId, CancellationToken cancellationToken = default);
     Task<Member?> GetTreasurerAsync(Guid groupId, CancellationToken cancellationToken = default);
+    Task<int> GetGroupMemberCountAsync(Guid groupId, CancellationToken cancellationToken = default);
 }

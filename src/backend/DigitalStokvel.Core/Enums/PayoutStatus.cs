@@ -11,6 +11,11 @@ public enum PayoutStatus
     Pending,
     
     /// <summary>
+    /// Payout initiated, awaiting Treasurer approval
+    /// </summary>
+    PendingApproval,
+    
+    /// <summary>
     /// Payout approved by Treasurer, awaiting execution
     /// </summary>
     Approved,
@@ -28,5 +33,10 @@ public enum PayoutStatus
     /// <summary>
     /// Payout rejected by Treasurer or expired (24h timeout)
     /// </summary>
-    Rejected
+    Rejected,
+    
+    /// <summary>
+    /// Not approved within 24 hours
+    /// </summary>
+    Expired
 }

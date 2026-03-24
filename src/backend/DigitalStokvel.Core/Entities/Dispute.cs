@@ -21,4 +21,5 @@ public class Dispute : BaseEntity
     public Group Group { get; set; } = null!;
     public Member RaisedByMember { get; set; } = null!;
     public ICollection<DisputeMessage> Messages { get; set; } = new List<DisputeMessage>();
+    public ICollection<DisputeMessage> DisputeMessages { get; set; } = new List<DisputeMessage>(); // Alias for Messages
 }

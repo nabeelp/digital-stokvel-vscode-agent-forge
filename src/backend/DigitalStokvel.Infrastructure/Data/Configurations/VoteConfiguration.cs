@@ -20,12 +20,21 @@ public class VoteConfiguration : IEntityTypeConfiguration<Vote>
             .IsRequired()
             .HasMaxLength(1000);
         
+        builder.Property(e => e.Description)
+            .HasMaxLength(2000);
+        
         builder.Property(e => e.VoteDeadline)
+            .IsRequired();
+        
+        builder.Property(e => e.Deadline)
             .IsRequired();
         
         builder.Property(e => e.QuorumThreshold)
             .HasPrecision(5, 2)
             .IsRequired();
+        
+        builder.Property(e => e.QuorumPercentage)
+            .HasDefaultValue(50);
         
         builder.Property(e => e.Status)
             .IsRequired()

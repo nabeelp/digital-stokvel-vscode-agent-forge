@@ -21,6 +21,11 @@ public enum TransactionType
     Interest,
     
     /// <summary>
+    /// Monthly interest capitalization (credit to group wallet)
+    /// </summary>
+    InterestCapitalization,
+    
+    /// <summary>
     /// Late fee applied to member (credit to group wallet)
     /// </summary>
     LateFee,

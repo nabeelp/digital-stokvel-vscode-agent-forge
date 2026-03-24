@@ -14,4 +14,6 @@ public interface IPayoutRepository : IRepository<Payout>
     Task<IEnumerable<Payout>> GetByRecipientMemberIdAsync(Guid recipientMemberId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Payout>> GetByStatusAsync(PayoutStatus status, CancellationToken cancellationToken = default);
     Task<decimal> GetTotalPaidoutByGroupIdAsync(Guid groupId, CancellationToken cancellationToken = default);
+    Task<decimal> GetTotalByGroupAsync(Guid groupId, PayoutStatus status, CancellationToken cancellationToken = default);
+    Task<Payout?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
 }

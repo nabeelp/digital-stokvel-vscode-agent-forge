@@ -10,8 +10,11 @@ public interface ILedgerRepository
 {
     Task<LedgerEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<LedgerEntry>> GetByGroupIdAsync(Guid groupId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<List<LedgerEntry>> GetByGroupIdPagedAsync(Guid groupId, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
     Task<IEnumerable<LedgerEntry>> GetByGroupIdWithDateRangeAsync(Guid groupId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
     Task<IEnumerable<LedgerEntry>> GetByMemberIdAsync(Guid memberId, CancellationToken cancellationToken = default);
     Task<LedgerEntry> AddEntryAsync(LedgerEntry entry, CancellationToken cancellationToken = default);
+    Task AddAsync(LedgerEntry entry, CancellationToken cancellationToken = default);
     Task<int> CountByGroupIdAsync(Guid groupId, CancellationToken cancellationToken = default);
+    Task<int> GetCountByGroupIdAsync(Guid groupId, CancellationToken cancellationToken = default);
 }

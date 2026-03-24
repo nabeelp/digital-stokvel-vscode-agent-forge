@@ -28,8 +28,17 @@ public class GroupConstitutionConfiguration : IEntityTypeConfiguration<GroupCons
             .IsRequired()
             .HasDefaultValue(0.50m); // 50% default
         
+        builder.Property(e => e.QuorumPercentage)
+            .HasDefaultValue(50);
+        
         builder.Property(e => e.MemberRemovalRules)
             .HasMaxLength(1000);
+        
+        builder.Property(e => e.MemberRemovalProcess)
+            .HasMaxLength(1000);
+        
+        builder.Property(e => e.OtherRules)
+            .HasMaxLength(2000);
         
         builder.Property(e => e.GracePeriodDays)
             .HasDefaultValue(3);

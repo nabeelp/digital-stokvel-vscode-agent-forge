@@ -67,4 +67,19 @@ public class PayoutRepository : Repository<Payout>, IPayoutRepository
             .Where(p => p.GroupId == groupId && p.Status == PayoutStatus.Completed)
             .SumAsync(p => p.Amount, cancellationToken);
     }
+
+    public async Task<Payout?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(p => p.RecipientMember)
+            .Include(p => p.Group)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    }
+
+    public async Task<decimal> GetTotalByGroupAsync(Guid groupId, PayoutStatus status, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Where(p => p.GroupId == groupId && p.Status == status)
+            .SumAsync(p => p.Amount, cancellationToken);
+    }
 }

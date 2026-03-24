@@ -17,7 +17,7 @@
     
     <!-- Build Properties -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);1591</NoWarn> <!-- Missing XML comment -->
+    <NoWarn>$(NoWarn);1591;IDE0011</NoWarn> <!-- Missing XML comment, Add braces to if statement -->
     
     <!-- Code Analysis -->
     <EnableNETAnalyzers>true</EnableNETAnalyzers>

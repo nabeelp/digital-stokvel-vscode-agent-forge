@@ -51,4 +51,20 @@ public class DisputeRepository : Repository<Dispute>, IDisputeRepository
             .Where(d => d.Status == DisputeStatus.Open && d.EscalationDeadline < now)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<DisputeMessage> AddMessageAsync(DisputeMessage message, CancellationToken cancellationToken = default)
+    {
+        await _context.DisputeMessages.AddAsync(message, cancellationToken);
+        return message;
+    }
+
+    public async Task<IEnumerable<Dispute>> GetOpenDisputesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(d => d.Group)
+            .Include(d => d.RaisedByMember)
+            .Where(d => d.Status == DisputeStatus.Open)
+            .OrderBy(d => d.RaisedAt)
+            .ToListAsync(cancellationToken);
+    }
 }

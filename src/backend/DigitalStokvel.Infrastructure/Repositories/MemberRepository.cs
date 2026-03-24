@@ -64,4 +64,11 @@ public class MemberRepository : Repository<Member>, IMemberRepository
         return await _dbSet
             .FirstOrDefaultAsync(m => m.GroupId == groupId && m.Role == MemberRole.Treasurer, cancellationToken);
     }
+
+    public async Task<int> GetGroupMemberCountAsync(Guid groupId, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Where(m => m.GroupId == groupId && m.Status == MemberStatus.Active)
+            .CountAsync(cancellationToken);
+    }
 }

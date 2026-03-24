@@ -12,4 +12,5 @@ public interface IVoteRepository : IRepository<Vote>
     Task<IEnumerable<Vote>> GetActiveVotesAsync(Guid groupId, CancellationToken cancellationToken = default);
     Task<Vote?> GetByIdWithRecordsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<Vote>> GetExpiredVotesAsync(CancellationToken cancellationToken = default);
+    Task<VoteRecord> AddRecordAsync(VoteRecord record, CancellationToken cancellationToken = default);
 }

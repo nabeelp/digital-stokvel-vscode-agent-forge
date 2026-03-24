@@ -9,7 +9,9 @@ public interface IGroupRepository : IRepository<Group>
 {
     Task<Group?> GetByIdWithMembersAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Group?> GetByIdWithConstitutionAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<GroupConstitution?> GetConstitutionByGroupIdAsync(Guid groupId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Group>> GetByChairpersonIdAsync(Guid chairpersonId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Group>> GetActiveGroupsAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<Group>> GetAllActiveAsync(CancellationToken cancellationToken = default);
     Task<bool> IsBankAccountNumberUniqueAsync(string bankAccountNumber, Guid? excludeGroupId = null, CancellationToken cancellationToken = default);
 }

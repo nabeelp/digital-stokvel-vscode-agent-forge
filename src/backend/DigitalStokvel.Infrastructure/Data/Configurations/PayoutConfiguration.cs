@@ -36,8 +36,16 @@ public class PayoutConfiguration : IEntityTypeConfiguration<Payout>
         builder.Property(e => e.TransactionId)
             .HasMaxLength(100);
         
+        builder.Property(e => e.InitiatedAt)
+            .IsRequired();
+        
         builder.Property(e => e.ApprovalExpiresAt)
             .IsRequired();
+        
+        builder.Property(e => e.ExpiresAt);
+        
+        builder.Property(e => e.Notes)
+            .HasMaxLength(1000);
         
         builder.Property(e => e.FailureReason)
             .HasMaxLength(500);

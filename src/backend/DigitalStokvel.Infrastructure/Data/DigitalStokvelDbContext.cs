@@ -32,6 +32,10 @@ public class DigitalStokvelDbContext : DbContext
     public DbSet<InterestTransaction> InterestTransactions => Set<InterestTransaction>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    
+    // Authentication entities
+    public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

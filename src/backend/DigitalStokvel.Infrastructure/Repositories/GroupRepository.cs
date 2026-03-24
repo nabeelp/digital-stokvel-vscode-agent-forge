@@ -44,6 +44,17 @@ public class GroupRepository : Repository<Group>, IGroupRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<Group>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+    {
+        return await GetActiveGroupsAsync(cancellationToken);
+    }
+
+    public async Task<GroupConstitution?> GetConstitutionByGroupIdAsync(Guid groupId, CancellationToken cancellationToken = default)
+    {
+        return await _context.GroupConstitutions
+            .FirstOrDefaultAsync(c => c.GroupId == groupId, cancellationToken);
+    }
+
     public async Task<bool> IsBankAccountNumberUniqueAsync(string bankAccountNumber, Guid? excludeGroupId = null, CancellationToken cancellationToken = default)
     {
         var query = _dbSet.Where(g => g.BankAccountNumber == bankAccountNumber);

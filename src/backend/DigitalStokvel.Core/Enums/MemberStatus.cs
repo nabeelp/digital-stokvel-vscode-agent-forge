@@ -16,6 +16,11 @@ public enum MemberStatus
     Inactive,
     
     /// <summary>
+    /// Member removed from group
+    /// </summary>
+    Removed,
+    
+    /// <summary>
     /// Pending acceptance of group invitation
     /// </summary>
     Invited
