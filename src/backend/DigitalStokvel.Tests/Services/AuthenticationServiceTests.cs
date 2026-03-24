@@ -29,8 +29,8 @@ public class AuthenticationServiceTests
         _mockConfig = new Mock<IConfiguration>();
         _mockLogger = new Mock<ILogger<AuthenticationService>>();
 
-        // Setup JWT configuration
-        _mockConfig.Setup(c => c["Jwt:SecretKey"]).Returns("TestSecretKeyForJwtTokenGeneration_MustBeAtLeast32Characters");
+        // Setup JWT configuration - note the service uses "Jwt:Key" not "Jwt:SecretKey"
+        _mockConfig.Setup(c => c["Jwt:Key"]).Returns("TestSecretKeyForJwtTokenGeneration_MustBeAtLeast32Characters");
         _mockConfig.Setup(c => c["Jwt:Issuer"]).Returns("DigitalStokvel");
         _mockConfig.Setup(c => c["Jwt:Audience"]).Returns("DigitalStokvelUsers");
 
@@ -56,7 +56,7 @@ public class AuthenticationServiceTests
         var request = new RegisterRequest
         {
             PhoneNumber = TestHelpers.GenerateValidSAPhoneNumber(),
-            Pin = "5678",
+            Pin = "2580",
             FullName = "Thabo Mbeki",
             IdNumber = TestDataBuilder.GenerateValidSAIdNumber(),
             POPIAConsent = true,
@@ -68,8 +68,18 @@ public class AuthenticationServiceTests
         // Act
         var (success, response, errorMessage) = await _authService.RegisterAsync(request);
 
-        // Assert
-        TestHelpers.AssertTupleSuccess(success, response, errorMessage);
+        // Assert - log error message for debugging
+        if (!success)
+        {
+            _mockLogger.Verify(l => l.Log(
+                It.IsAny<LogLevel>(),
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.AtLeastOnce);
+        }
+        
+        TestHelpers.AssertTupleSuccess(success, response, errorMessage, $"Registration failed with error: {errorMessage}");
         response.Should().NotBeNull();
         response!.AccessToken.Should().NotBeNullOrEmpty();
         response.RefreshToken.Should().NotBeNullOrEmpty();
@@ -91,7 +101,7 @@ public class AuthenticationServiceTests
         var request = new RegisterRequest
         {
             PhoneNumber = "+27812345678",
-            Pin = "5678",
+            Pin = "2580",
             FullName = "Nomsa Dlamini",
             IdNumber = TestDataBuilder.GenerateValidSAIdNumber(),
             POPIAConsent = true
@@ -168,12 +178,14 @@ public class AuthenticationServiceTests
         var request = new RegisterRequest
         {
             PhoneNumber = TestHelpers.GenerateValidSAPhoneNumber(),
-            Pin = "5678",
+            Pin = "2580",
             FullName = "Mandla Mthembu",
             IdNumber = idNumber,
             POPIAConsent = true
         };
 
+        _mockFixture.UserRepository.Setup(r => r.PhoneNumberExistsAsync(request.PhoneNumber))
+            .ReturnsAsync(false);
         _mockFixture.UserRepository.Setup(r => r.IdNumberExistsAsync(idNumber))
             .ReturnsAsync(true);
 
@@ -189,7 +201,7 @@ public class AuthenticationServiceTests
     public async Task RegisterAsync_HashesPin_NeverStoresPlainTextPin()
     {
         // Arrange
-        var plainPin = "5678";
+        var plainPin = "2580";
         var request = new RegisterRequest
         {
             PhoneNumber = TestHelpers.GenerateValidSAPhoneNumber(),
@@ -200,6 +212,10 @@ public class AuthenticationServiceTests
         };
 
         _mockFixture.SetupUserDoesNotExist(request.PhoneNumber);
+        _mockFixture.UserRepository.Setup(r => r.IdNumberExistsAsync(request.IdNumber))
+            .ReturnsAsync(false);
+        _mockFixture.UserRepository.Setup(r => r.CreateAsync(It.IsAny<User>()))
+            .ReturnsAsync((User user) => user);
 
         // Act
         await _authService.RegisterAsync(request);
@@ -219,11 +235,17 @@ public class AuthenticationServiceTests
     public async Task LoginAsync_WithValidCredentials_ReturnsTokens()
     {
         // Arrange
-        var plainPin = "5678";
+        var plainPin = "2580";
         var hashedPin = BCrypt.Net.BCrypt.HashPassword(plainPin, 12);
         var user = TestDataBuilder.BuildUser(pinHash: hashedPin);
 
         _mockFixture.SetupUserExists(user);
+        _mockFixture.UserRepository.Setup(r => r.ResetFailedLoginAttemptsAsync(user.Id.ToString()))
+            .Returns(Task.CompletedTask);
+        _mockFixture.UserRepository.Setup(r => r.UpdateLastLoginAsync(user.Id.ToString(), It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+        _mockFixture.RefreshTokenRepository.Setup(r => r.CreateAsync(It.IsAny<RefreshToken>()))
+            .ReturnsAsync((RefreshToken token) => token);
 
         var request = new LoginRequest
         {
@@ -255,7 +277,7 @@ public class AuthenticationServiceTests
     public async Task LoginAsync_WithInvalidPin_IncrementsFailedAttempts()
     {
         // Arrange
-        var correctPin = "5678";
+        var correctPin = "2580";
         var hashedPin = BCrypt.Net.BCrypt.HashPassword(correctPin, 12);
         var user = TestDataBuilder.BuildUser(pinHash: hashedPin);
         user.FailedLoginAttempts = 0;
@@ -282,7 +304,7 @@ public class AuthenticationServiceTests
     public async Task LoginAsync_AfterThreeFailedAttempts_LocksAccount_SP15()
     {
         // Arrange (SP-15: 3 failed attempts = 30-minute lockout)
-        var correctPin = "5678";
+        var correctPin = "2580";
         var hashedPin = BCrypt.Net.BCrypt.HashPassword(correctPin, 12);
         var user = TestDataBuilder.BuildUser(pinHash: hashedPin);
         user.FailedLoginAttempts = 2; // Already 2 failed attempts
@@ -318,6 +340,7 @@ public class AuthenticationServiceTests
     {
         // Arrange
         var user = TestDataBuilder.BuildUser();
+        user.Status = UserStatus.Locked; // Must set Status to Locked
         user.LockedUntil = DateTime.UtcNow.AddMinutes(20); // Locked for 20 more minutes
 
         _mockFixture.SetupUserExists(user);
@@ -325,7 +348,7 @@ public class AuthenticationServiceTests
         var request = new LoginRequest
         {
             PhoneNumber = user.PhoneNumber,
-            Pin = "5678"
+            Pin = "2580"
         };
 
         // Act
@@ -340,7 +363,7 @@ public class AuthenticationServiceTests
     public async Task LoginAsync_WithHighFraudRisk_ReturnsError()
     {
         // Arrange
-        var plainPin = "5678";
+        var plainPin = "2580";
         var hashedPin = BCrypt.Net.BCrypt.HashPassword(plainPin, 12);
         var user = TestDataBuilder.BuildUser(pinHash: hashedPin);
 
@@ -377,7 +400,7 @@ public class AuthenticationServiceTests
         var request = new LoginRequest
         {
             PhoneNumber = phoneNumber,
-            Pin = "5678"
+            Pin = "2580"
         };
 
         // Act

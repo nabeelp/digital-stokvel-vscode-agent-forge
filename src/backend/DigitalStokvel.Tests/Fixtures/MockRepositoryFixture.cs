@@ -52,6 +52,14 @@ public class MockRepositoryFixture
         UnitOfWork.Setup(u => u.Votes).Returns(VoteRepository.Object);
         UnitOfWork.Setup(u => u.Disputes).Returns(DisputeRepository.Object);
         UnitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        // Set up common repository operations that return created entities
+        RefreshTokenRepository.Setup(r => r.CreateAsync(It.IsAny<RefreshToken>()))
+            .ReturnsAsync((RefreshToken token) => token);
+        AuditLogRepository.Setup(r => r.CreateAsync(It.IsAny<AuditLog>()))
+            .ReturnsAsync((AuditLog log) => log);
+        LedgerRepository.Setup(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     /// <summary>
@@ -63,6 +71,10 @@ public class MockRepositoryFixture
         UserRepository.Setup(r => r.GetByPhoneNumberAsync(user.PhoneNumber)).ReturnsAsync(user);
         UserRepository.Setup(r => r.PhoneNumberExistsAsync(user.PhoneNumber)).ReturnsAsync(true);
         UserRepository.Setup(r => r.IdNumberExistsAsync(user.IdNumber)).ReturnsAsync(true);
+        UserRepository.Setup(r => r.IncrementFailedLoginAttemptsAsync(user.Id.ToString())).Returns(Task.CompletedTask);
+        UserRepository.Setup(r => r.ResetFailedLoginAttemptsAsync(user.Id.ToString())).Returns(Task.CompletedTask);
+        UserRepository.Setup(r => r.LockAccountAsync(user.Id.ToString(), It.IsAny<DateTime>())).Returns(Task.CompletedTask);
+        UserRepository.Setup(r => r.UpdateLastLoginAsync(user.Id.ToString(), It.IsAny<string>(), It.IsAny<string?>())).Returns(Task.CompletedTask);
     }
 
     /// <summary>
@@ -72,6 +84,11 @@ public class MockRepositoryFixture
     {
         UserRepository.Setup(r => r.GetByPhoneNumberAsync(phoneNumber)).ReturnsAsync((User?)null);
         UserRepository.Setup(r => r.PhoneNumberExistsAsync(phoneNumber)).ReturnsAsync(false);
+        UserRepository.Setup(r => r.IdNumberExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        UserRepository.Setup(r => r.CreateAsync(It.IsAny<User>()))
+            .ReturnsAsync((User user) => user);
+        UserRepository.Setup(r => r.UpdateAsync(It.IsAny<User>()))
+            .ReturnsAsync((User user) => user);
     }
 
     /// <summary>

@@ -243,13 +243,33 @@ public class TestDataBuilder
     }
 
     /// <summary>
-    /// Generates a valid South African ID number (simplified for testing)
+    /// Generates a valid South African ID number with correct Luhn checksum
     /// </summary>
     public static string GenerateValidSAIdNumber()
     {
         var counter = _idCounter++;
-        // Format: YYMMDD SSSS C A Z (simplified)
-        return $"900101{counter:D4}08{(counter % 10)}";
+        // Format: YYMMDD SSSS C A (12 digits) + Z (checksum)
+        // Use 900101 (1990-01-01) + sequence + 0 (SA citizen) + 8 (old format)
+        var idWithoutChecksum = $"900101{counter:D4}08";
+        
+        // Calculate Luhn checksum
+        int sum = 0;
+        for (int i = 0; i < 12; i++)
+        {
+            int digit = int.Parse(idWithoutChecksum[i].ToString());
+            if (i % 2 == 0)
+            {
+                sum += digit;
+            }
+            else
+            {
+                int doubled = digit * 2;
+                sum += doubled > 9 ? doubled - 9 : doubled;
+            }
+        }
+        
+        int checkDigit = (10 - (sum % 10)) % 10;
+        return idWithoutChecksum + checkDigit;
     }
 
     /// <summary>
