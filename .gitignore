@@ -1,0 +1,180 @@
+# Operating System
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+project.lock.json
+project.fragment.lock.json
+artifacts/
+**/Properties/launchSettings.json
+*.user
+*.userosscache
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# .NET Core
+appsettings.Development.json
+appsettings.Local.json
+*.DotSettings.user
+
+# Entity Framework
+Migrations/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# React Native
+.expo/
+.expo-shared/
+dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+local.properties
+.gradle/
+build/
+captures/
+.externalNativeBuild
+.cxx/
+
+# iOS
+*.ipa
+*.dSYM.zip
+*.dSYM
+ios/Pods/
+ios/.xcode.env.local
+DerivedData/
+*.xcworkspace
+!default.xcworkspace
+*.xcuserdata
+*.xcscmblueprint
+*.hmap
+*.ipa
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Azure & Infrastructure
+*.parameters.json
+!dev.parameters.json
+!prod.parameters.json
+*.tfstate
+*.tfstate.backup
+.terraform/
+*.tfvars
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Secrets
+secrets/
+*.key
+*.pem
+*.cert
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+*.cover
+.hypothesis/
+.pytest_cache/
+test-results/
+playwright-report/
+TestResults/
+
+# Build Outputs
+dist/
+build/
+out/
+publish/
+
+# Docker
+docker-compose.override.yml
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+Desktop.ini
+$RECYCLE.BIN/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
+
+# Azure Functions
+__blobstorage__
+__queuestorage__
+__azurite_db*__.json
+
+# Misc
+*.bak
+*.old
+*.backup

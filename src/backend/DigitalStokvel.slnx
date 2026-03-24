@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="DigitalStokvel.API/DigitalStokvel.API.csproj" />
+  <Project Path="DigitalStokvel.Core/DigitalStokvel.Core.csproj" />
+  <Project Path="DigitalStokvel.Infrastructure/DigitalStokvel.Infrastructure.csproj" />
+  <Project Path="DigitalStokvel.Services/DigitalStokvel.Services.csproj" />
+  <Project Path="DigitalStokvel.Tests/DigitalStokvel.Tests.csproj" />
+  <Project Path="DigitalStokvel.USSD/DigitalStokvel.USSD.csproj" />
+</Solution>

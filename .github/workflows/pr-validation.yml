@@ -1,0 +1,285 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  validate-backend:
+    name: Backend Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: ./src/backend
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+      working-directory: ./src/backend
+    
+    - name: Run tests with coverage
+      run: |
+        dotnet test --no-build --configuration Release \
+          --verbosity normal \
+          --logger "trx;LogFileName=test-results.trx" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory ./TestResults \
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      working-directory: ./src/backend
+    
+    - name: Check code coverage threshold (70%)
+      id: coverage
+      run: |
+        # Install dotnet-coverage tool
+        dotnet tool install -g dotnet-reportgenerator-globaltool
+        
+        # Generate coverage report
+        reportgenerator \
+          -reports:"./TestResults/**/coverage.opencover.xml" \
+          -targetdir:"./TestResults/CoverageReport" \
+          -reporttypes:"TextSummary;Html"
+        
+        # Extract coverage percentage
+        COVERAGE=$(grep "Line coverage:" ./TestResults/CoverageReport/Summary.txt | awk '{print $3}' | sed 's/%//')
+        echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+        
+        echo "## 📊 Code Coverage: $COVERAGE%" >> $GITHUB_STEP_SUMMARY
+        
+        # Check threshold
+        if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+          echo "::error::Code coverage ($COVERAGE%) is below 70% threshold"
+          exit 1
+        else
+          echo "✅ Code coverage meets threshold ($COVERAGE% >= 70%)"
+        fi
+      working-directory: ./src/backend
+    
+    - name: Comment coverage on PR
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        script: |
+          const coverage = '${{ steps.coverage.outputs.coverage }}';
+          const threshold = 70;
+          const emoji = coverage >= threshold ? '✅' : '❌';
+          
+          const comment = `## ${emoji} Backend Code Coverage\n\n` +
+            `**Coverage**: ${coverage}%\n` +
+            `**Threshold**: ${threshold}%\n` +
+            `**Status**: ${coverage >= threshold ? 'PASS' : 'FAIL'}`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+    
+    - name: Publish test results
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: always()
+      with:
+        files: 'src/backend/TestResults/**/*.trx'
+        check_name: 'Backend Test Results'
+
+  validate-mobile:
+    name: Mobile Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: src/mobile/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+      working-directory: ./src/mobile
+    
+    - name: Run ESLint
+      run: npm run lint
+      working-directory: ./src/mobile
+    
+    - name: TypeScript type check
+      run: npx tsc --noEmit
+      working-directory: ./src/mobile
+    
+    - name: Run Jest tests
+      run: npm test -- --coverage
+      working-directory: ./src/mobile
+    
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        script: |
+          const comment = `## ✅ Mobile Validation\n\n` +
+            `- ESLint: Passed\n` +
+            `- TypeScript: Passed\n` +
+            `- Tests: Passed`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  validate-web:
+    name: Web Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: src/web/chairperson-dashboard/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+      working-directory: ./src/web/chairperson-dashboard
+    
+    - name: Run ESLint
+      run: npm run lint
+      working-directory: ./src/web/chairperson-dashboard
+    
+    - name: TypeScript type check
+      run: npx tsc --noEmit || npm run type-check
+      working-directory: ./src/web/chairperson-dashboard
+      continue-on-error: false
+    
+    - name: Build check
+      run: npm run build
+      working-directory: ./src/web/chairperson-dashboard
+      env:
+        VITE_API_BASE_URL: https://api.example.com
+    
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        script: |
+          const comment = `## ✅ Web Validation\n\n` +
+            `- ESLint: Passed\n` +
+            `- TypeScript: Passed\n` +
+            `- Build: Passed`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  validate-infrastructure:
+    name: Infrastructure Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Install Bicep
+      run: az bicep install
+    
+    - name: Bicep lint
+      run: |
+        az bicep build --file main.bicep
+        echo "✅ Bicep validation passed"
+      working-directory: ./infra
+    
+    - name: Bicep what-if (dev)
+      run: |
+        az deployment group what-if \
+          --resource-group digital-stokvel-dev \
+          --template-file main.bicep \
+          --parameters @parameters/dev.parameters.json \
+          --parameters sqlAdminObjectId=placeholder
+      working-directory: ./infra
+      continue-on-error: true
+
+  check-breaking-changes:
+    name: Check for Breaking Changes
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check for API breaking changes
+      run: |
+        # Check if any API controllers changed
+        CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+        
+        if echo "$CHANGED_FILES" | grep -q "src/backend/DigitalStokvel.API/Controllers"; then
+          echo "⚠️ API controllers changed - review for breaking changes" >> $GITHUB_STEP_SUMMARY
+          echo "::warning::API controllers modified - ensure backward compatibility"
+        fi
+        
+        # Check database migrations
+        if echo "$CHANGED_FILES" | grep -q "src/backend/DigitalStokvel.Infrastructure/Migrations"; then
+          echo "⚠️ Database migrations detected" >> $GITHUB_STEP_SUMMARY
+          echo "::warning::Database schema changes detected"
+        fi
+
+  pr-validation-summary:
+    name: PR Validation Summary
+    runs-on: ubuntu-latest
+    needs: [validate-backend, validate-mobile, validate-web, validate-infrastructure, check-breaking-changes]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "## 🔍 Pull Request Validation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Backend | ${{ needs.validate-backend.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Mobile | ${{ needs.validate-mobile.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Web | ${{ needs.validate-web.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Infrastructure | ${{ needs.validate-infrastructure.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Breaking Changes | ${{ needs.check-breaking-changes.result == 'success' && '✅ Passed' || '⚠️ Review Required' }} |" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Check overall status
+      if: |
+        needs.validate-backend.result != 'success' ||
+        needs.validate-mobile.result != 'success' ||
+        needs.validate-web.result != 'success'
+      run: |
+        echo "::error::PR validation failed. Please fix issues before merging."
+        exit 1

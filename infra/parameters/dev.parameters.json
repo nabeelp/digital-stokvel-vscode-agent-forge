@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "southafricanorth"
+    },
+    "projectName": {
+      "value": "digitalstokvel"
+    },
+    "postgresAdminObjectId": {
+      "value": "<REPLACE_WITH_YOUR_AZURE_AD_OBJECT_ID>"
+    },
+    "postgresAdminLogin": {
+      "value": "<REPLACE_WITH_YOUR_EMAIL>"
+    },
+    "costCenter": {
+      "value": "DigitalBanking-Dev"
+    },
+    "ownerEmail": {
+      "value": "devops-dev@stokvel.bank"
+    }
+  }
+}

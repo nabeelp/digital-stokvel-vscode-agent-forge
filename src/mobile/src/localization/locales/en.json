@@ -1,0 +1,12 @@
+{
+  "welcome": "Welcome to Digital Stokvel Banking",
+  "login": "Login",
+  "register": "Register",
+  "groups": "My Groups",
+  "contributions": "Contributions",
+  "profile": "Profile",
+  "createGroup": "Create Group",
+  "contribute": "Make Contribution",
+  "viewLedger": "View Ledger",
+  "payouts": "Payouts"
+}

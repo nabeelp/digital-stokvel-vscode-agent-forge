@@ -1,0 +1,55 @@
+{
+  "name": "digital-stokvel-mobile",
+  "version": "1.0.0",
+  "description": "Digital Stokvel Banking Mobile App - React Native cross-platform application",
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "test": "jest",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-native": "0.76.6",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/stack": "^6.4.1",
+    "@react-navigation/bottom-tabs": "^6.6.1",
+    "react-native-gesture-handler": "^2.21.2",
+    "react-native-reanimated": "^3.17.1",
+    "react-native-screens": "^4.5.4",
+    "react-native-safe-area-context": "^4.14.0",
+    "@react-native-async-storage/async-storage": "^2.1.0",
+    "@tanstack/react-query": "^5.62.13",
+    "axios": "^1.7.9",
+    "i18next": "^24.2.0",
+    "react-i18next": "^15.2.0",
+    "date-fns": "^4.1.0",
+    "react-native-config": "^1.5.3",
+    "@react-native-firebase/app": "^21.8.0",
+    "@react-native-firebase/messaging": "^21.8.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/runtime": "^7.26.0",
+    "@react-native/babel-preset": "0.76.6",
+    "@react-native/eslint-config": "0.76.6",
+    "@react-native/metro-config": "0.76.6",
+    "@react-native/typescript-config": "0.76.6",
+    "@types/react": "^18.3.18",
+    "@types/react-test-renderer": "^18.3.0",
+    "babel-jest": "^29.7.0",
+    "eslint": "^8.57.1",
+    "jest": "^29.7.0",
+    "prettier": "3.4.2",
+    "react-test-renderer": "18.3.1",
+    "typescript": "5.7.2"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "private": true
+}

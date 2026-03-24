@@ -1,0 +1,266 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/backend/**'
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
+  IMAGE_NAME: digitalstokvel-api
+  
+jobs:
+  build-and-test:
+    name: Build, Test & Analyze
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones disabled for SonarCloud
+    
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+    
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: ./src/backend
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+      working-directory: ./src/backend
+    
+    - name: Run unit tests with coverage
+      run: |
+        dotnet test --no-build --configuration Release \
+          --verbosity normal \
+          --logger "trx;LogFileName=test-results.trx" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory ./TestResults \
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      working-directory: ./src/backend
+    
+    - name: Publish test results
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: always()
+      with:
+        files: 'src/backend/TestResults/**/*.trx'
+        check_name: 'Backend Test Results'
+    
+    - name: Code Coverage Report
+      uses: codecov/codecov-action@v4
+      if: always()
+      with:
+        files: ./src/backend/TestResults/**/coverage.opencover.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+    
+    - name: Check code coverage threshold
+      run: |
+        dotnet tool install -g dotnet-coverage
+        COVERAGE=$(dotnet coverage analyze ./TestResults/**/coverage.opencover.xml --percentage)
+        echo "Code Coverage: $COVERAGE%"
+        if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+          echo "::error::Code coverage ($COVERAGE%) is below 70% threshold"
+          exit 1
+        fi
+      working-directory: ./src/backend
+      if: github.event_name == 'pull_request'
+    
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        projectBaseDir: src/backend
+        args: >
+          -Dsonar.projectKey=digital-stokvel-backend
+          -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+          -Dsonar.cs.opencover.reportsPaths=**/TestResults/**/coverage.opencover.xml
+          -Dsonar.coverage.exclusions=**Tests/**,**/*.Tests/**
+    
+    - name: Publish build artifacts
+      uses: actions/upload-artifact@v4
+      if: github.ref == 'refs/heads/main'
+      with:
+        name: backend-build
+        path: src/backend/**/bin/Release/**
+        retention-days: 7
+
+  docker-build-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Azure Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=${{ github.sha }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: ./src/backend
+        file: ./src/backend/DigitalStokvel.API/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+        build-args: |
+          BUILD_VERSION=${{ github.sha }}
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}
+    
+    - name: Image scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+    
+    - name: Upload Trivy results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: dev
+      url: ${{ steps.deploy.outputs.container-app-url }}
+    
+    steps:
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy to Azure Container Apps
+      id: deploy
+      uses: azure/container-apps-deploy-action@v1
+      with:
+        containerAppName: digitalstokvel-api-dev
+        resourceGroup: digital-stokvel-dev
+        imageToDeploy: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        environmentVariables: |
+          ASPNETCORE_ENVIRONMENT=Development
+          ApplicationInsights__ConnectionString=secretref:appinsights-connection-string
+    
+    - name: Run smoke tests
+      run: |
+        echo "Waiting for deployment to stabilize..."
+        sleep 30
+        HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
+        if [ $HTTP_STATUS -eq 200 ]; then
+          echo "✅ Health check passed"
+        else
+          echo "::error::Health check failed with status $HTTP_STATUS"
+          exit 1
+        fi
+    
+    - name: Deployment summary
+      run: |
+        echo "## 🚀 Backend Deployment - Development" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: Development" >> $GITHUB_STEP_SUMMARY
+        echo "- **URL**: ${{ steps.deploy.outputs.container-app-url }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: prod
+      url: ${{ steps.deploy.outputs.container-app-url }}
+    
+    steps:
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy to Azure Container Apps
+      id: deploy
+      uses: azure/container-apps-deploy-action@v1
+      with:
+        containerAppName: digitalstokvel-api-prod
+        resourceGroup: digital-stokvel-prod
+        imageToDeploy: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        environmentVariables: |
+          ASPNETCORE_ENVIRONMENT=Production
+          ApplicationInsights__ConnectionString=secretref:appinsights-connection-string
+    
+    - name: Run smoke tests
+      run: |
+        echo "Waiting for deployment to stabilize..."
+        sleep 30
+        HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
+        if [ $HTTP_STATUS -eq 200 ]; then
+          echo "✅ Health check passed"
+        else
+          echo "::error::Health check failed with status $HTTP_STATUS"
+          exit 1
+        fi
+    
+    - name: Deployment summary
+      run: |
+        echo "## 🚀 Backend Deployment - Production" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+        echo "- **URL**: ${{ steps.deploy.outputs.container-app-url }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

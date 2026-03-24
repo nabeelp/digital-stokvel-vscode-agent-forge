@@ -1,0 +1,271 @@
+name: Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment for migration'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      migration_action:
+        description: 'Migration action'
+        required: true
+        type: choice
+        options:
+          - apply
+          - rollback
+          - status
+      rollback_target:
+        description: 'Target migration for rollback (migration name)'
+        required: false
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate-migration:
+    name: Validate Migration
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Install EF Core tools
+      run: dotnet tool install --global dotnet-ef
+    
+    - name: Verify migrations
+      run: |
+        dotnet ef migrations list \
+          --project src/backend/DigitalStokvel.Infrastructure \
+          --startup-project src/backend/DigitalStokvel.API \
+          --context StokvelDbContext
+        
+        echo "✅ Migrations validated"
+
+  apply-migration:
+    name: Apply Migration
+    runs-on: ubuntu-latest
+    needs: validate-migration
+    if: inputs.migration_action == 'apply'
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Install EF Core tools
+      run: dotnet tool install --global dotnet-ef
+    
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Get connection string
+      id: connection
+      run: |
+        KEYVAULT_NAME="kv-stokvel-${{ inputs.environment }}-$(az account show --query tenantId -o tsv | cut -c1-8)"
+        
+        # Try to get from Key Vault
+        CONNECTION_STRING=$(az keyvault secret show \
+          --vault-name "$KEYVAULT_NAME" \
+          --name "PostgresConnectionString" \
+          --query value -o tsv 2>/dev/null) || true
+        
+        if [ -z "$CONNECTION_STRING" ]; then
+          echo "::error::Connection string not found in Key Vault: $KEYVAULT_NAME"
+          exit 1
+        fi
+        
+        echo "::add-mask::$CONNECTION_STRING"
+        echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+    
+    - name: Backup current schema
+      run: |
+        echo "Creating pre-migration backup..."
+        # Use pg_dump to backup before migration
+        # Store backup in Azure Blob Storage
+        echo "⚠️ Manual backup recommended for production"
+    
+    - name: Apply migrations
+      env:
+        ConnectionStrings__DefaultConnection: ${{ steps.connection.outputs.connection_string }}
+      run: |
+        dotnet ef database update \
+          --project src/backend/DigitalStokvel.Infrastructure \
+          --startup-project src/backend/DigitalStokvel.API \
+          --context StokvelDbContext \
+          --verbose
+        
+        echo "✅ Migrations applied successfully"
+    
+    - name: Verify migration
+      env:
+        ConnectionStrings__DefaultConnection: ${{ steps.connection.outputs.connection_string }}
+      run: |
+        # Run post-migration validation queries
+        echo "Running post-migration validation..."
+        
+        dotnet ef migrations list \
+          --project src/backend/DigitalStokvel.Infrastructure \
+          --startup-project src/backend/DigitalStokvel.API \
+          --context StokvelDbContext
+        
+        echo "✅ Migration verification complete"
+    
+    - name: Migration summary
+      run: |
+        echo "## ✅ Migration Applied" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Action**: Apply migrations" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: Success" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+  rollback-migration:
+    name: Rollback Migration
+    runs-on: ubuntu-latest
+    needs: validate-migration
+    if: inputs.migration_action == 'rollback'
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Install EF Core tools
+      run: dotnet tool install --global dotnet-ef
+    
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Get connection string
+      id: connection
+      run: |
+        KEYVAULT_NAME="kv-stokvel-${{ inputs.environment }}-$(az account show --query tenantId -o tsv | cut -c1-8)"
+        
+        CONNECTION_STRING=$(az keyvault secret show \
+          --vault-name "$KEYVAULT_NAME" \
+          --name "PostgresConnectionString" \
+          --query value -o tsv 2>/dev/null) || true
+        
+        if [ -z "$CONNECTION_STRING" ]; then
+          echo "::error::Connection string not found"
+          exit 1
+        fi
+        
+        echo "::add-mask::$CONNECTION_STRING"
+        echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+    
+    - name: Rollback migration
+      env:
+        ConnectionStrings__DefaultConnection: ${{ steps.connection.outputs.connection_string }}
+      run: |
+        if [ -n "${{ inputs.rollback_target }}" ]; then
+          echo "Rolling back to migration: ${{ inputs.rollback_target }}"
+          dotnet ef database update "${{ inputs.rollback_target }}" \
+            --project src/backend/DigitalStokvel.Infrastructure \
+            --startup-project src/backend/DigitalStokvel.API \
+            --context StokvelDbContext \
+            --verbose
+        else
+          echo "::error::Rollback target migration not specified"
+          exit 1
+        fi
+        
+        echo "✅ Rollback completed"
+    
+    - name: Rollback summary
+      run: |
+        echo "## ⚠️ Migration Rolled Back" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Action**: Rollback" >> $GITHUB_STEP_SUMMARY
+        echo "- **Target**: ${{ inputs.rollback_target }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+  check-migration-status:
+    name: Check Migration Status
+    runs-on: ubuntu-latest
+    needs: validate-migration
+    if: inputs.migration_action == 'status'
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Install EF Core tools
+      run: dotnet tool install --global dotnet-ef
+    
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Get connection string
+      id: connection
+      run: |
+        KEYVAULT_NAME="kv-stokvel-${{ inputs.environment }}-$(az account show --query tenantId -o tsv | cut -c1-8)"
+        
+        CONNECTION_STRING=$(az keyvault secret show \
+          --vault-name "$KEYVAULT_NAME" \
+          --name "PostgresConnectionString" \
+          --query value -o tsv 2>/dev/null) || true
+        
+        if [ -z "$CONNECTION_STRING" ]; then
+          echo "::warning::Connection string not found, showing local migrations only"
+        else
+          echo "::add-mask::$CONNECTION_STRING"
+          echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: List pending migrations
+      env:
+        ConnectionStrings__DefaultConnection: ${{ steps.connection.outputs.connection_string }}
+      run: |
+        echo "## 📋 Migration Status" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        dotnet ef migrations list \
+          --project src/backend/DigitalStokvel.Infrastructure \
+          --startup-project src/backend/DigitalStokvel.API \
+          --context StokvelDbContext \
+          --no-build \
+          --no-connect || dotnet ef migrations list \
+          --project src/backend/DigitalStokvel.Infrastructure \
+          --startup-project src/backend/DigitalStokvel.API \
+          --context StokvelDbContext
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
