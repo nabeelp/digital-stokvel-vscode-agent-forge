@@ -109,6 +109,8 @@ public class AuthenticationServiceTests
 
         _mockFixture.UserRepository.Setup(r => r.PhoneNumberExistsAsync(request.PhoneNumber))
             .ReturnsAsync(true);
+        _mockFixture.UserRepository.Setup(r => r.IdNumberExistsAsync(request.IdNumber))
+            .ReturnsAsync(false);
 
         // Act
         var (success, response, errorMessage) = await _authService.RegisterAsync(request);

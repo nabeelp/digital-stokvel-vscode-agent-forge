@@ -110,6 +110,7 @@ public class TestDataBuilder
             UserId = userId ?? Guid.NewGuid().ToString(),
             FullName = fullName ?? SouthAfricanNames[_nameCounter++ % SouthAfricanNames.Length],
             PhoneNumber = GenerateValidSAPhoneNumber(),
+            BankAccountNumber = GenerateBankAccountNumber(),
             Role = role,
             Status = status,
             JoinedAt = DateTime.UtcNow,
@@ -250,7 +251,8 @@ public class TestDataBuilder
         var counter = _idCounter++;
         // Format: YYMMDD SSSS C A (12 digits) + Z (checksum)
         // Use 900101 (1990-01-01) + sequence + 0 (SA citizen) + 8 (old format)
-        var idWithoutChecksum = $"900101{counter:D4}08";
+        // Use modulo to keep counter within 4 digits (0-9999)
+        var idWithoutChecksum = $"900101{(counter % 10000):D4}08";
         
         // Calculate Luhn checksum
         int sum = 0;

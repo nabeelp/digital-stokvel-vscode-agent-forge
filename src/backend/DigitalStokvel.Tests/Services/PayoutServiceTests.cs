@@ -251,22 +251,28 @@ public class PayoutServiceTests
     {
         // Arrange (PE-04: Only Treasurer can approve)
         var treasurerUserId = Guid.NewGuid().ToString();
+        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
+
         var treasurer = TestDataBuilder.BuildMember(
+            groupId: group.Id,
             userId: treasurerUserId,
             role: MemberRole.Treasurer
         );
-        var recipient = TestDataBuilder.BuildMember(role: MemberRole.Member);
+        var recipient = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Member);
+        var chairperson = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Chairperson);
+        group.Members = new List<Member> { treasurer, recipient, chairperson };
+
         var payout = TestDataBuilder.BuildPayout(
+            groupId: group.Id,
             recipientMemberId: recipient.Id,
+            initiatedByMemberId: chairperson.Id,
             status: PayoutStatus.PendingApproval
         );
-
-        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
-        group.Members = new List<Member> { treasurer, recipient };
 
         _mockFixture.PayoutRepository.Setup(p => p.GetByIdWithDetailsAsync(payout.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(payout);
         _mockFixture.SetupGroupExists(group);
+        _mockFixture.SetupMemberExists(recipient);
         _mockFixture.SetupSuccessfulPayment();
 
         var request = new ApprovePayoutRequest("Approved by Treasurer");
@@ -292,18 +298,22 @@ public class PayoutServiceTests
     {
         // Arrange (PE-04: Only Treasurer, not Chairperson!)
         var chairpersonUserId = Guid.NewGuid().ToString();
+        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
+
         var chairperson = TestDataBuilder.BuildMember(
+            groupId: group.Id,
             userId: chairpersonUserId,
             role: MemberRole.Chairperson // Not Treasurer!
         );
-        var recipient = TestDataBuilder.BuildMember(role: MemberRole.Member);
+        var recipient = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Member);
+        group.Members = new List<Member> { chairperson, recipient };
+
         var payout = TestDataBuilder.BuildPayout(
+            groupId: group.Id,
             recipientMemberId: recipient.Id,
+            initiatedByMemberId: chairperson.Id,
             status: PayoutStatus.PendingApproval
         );
-
-        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
-        group.Members = new List<Member> { chairperson, recipient };
 
         _mockFixture.PayoutRepository.Setup(p => p.GetByIdWithDetailsAsync(payout.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(payout);
@@ -330,19 +340,24 @@ public class PayoutServiceTests
     {
         // Arrange (PE-03: Expired after 24 hours)
         var treasurerUserId = Guid.NewGuid().ToString();
+        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
+
         var treasurer = TestDataBuilder.BuildMember(
+            groupId: group.Id,
             userId: treasurerUserId,
             role: MemberRole.Treasurer
         );
-        var recipient = TestDataBuilder.BuildMember(role: MemberRole.Member);
+        var recipient = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Member);
+        var chairperson = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Chairperson);
+        group.Members = new List<Member> { treasurer, recipient, chairperson };
+
         var payout = TestDataBuilder.BuildPayout(
+            groupId: group.Id,
             recipientMemberId: recipient.Id,
+            initiatedByMemberId: chairperson.Id,
             status: PayoutStatus.PendingApproval
         );
         payout.ExpiresAt = DateTime.UtcNow.AddHours(-1); // Already expired!
-
-        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
-        group.Members = new List<Member> { treasurer, recipient };
 
         _mockFixture.PayoutRepository.Setup(p => p.GetByIdWithDetailsAsync(payout.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(payout);
@@ -362,18 +377,23 @@ public class PayoutServiceTests
     {
         // Arrange
         var treasurerUserId = Guid.NewGuid().ToString();
+        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
+
         var treasurer = TestDataBuilder.BuildMember(
+            groupId: group.Id,
             userId: treasurerUserId,
             role: MemberRole.Treasurer
         );
-        var recipient = TestDataBuilder.BuildMember(role: MemberRole.Member);
+        var recipient = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Member);
+        var chairperson = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Chairperson);
+        group.Members = new List<Member> { treasurer, recipient, chairperson };
+
         var payout = TestDataBuilder.BuildPayout(
+            groupId: group.Id,
             recipientMemberId: recipient.Id,
+            initiatedByMemberId: chairperson.Id,
             status: PayoutStatus.PendingApproval
         );
-
-        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
-        group.Members = new List<Member> { treasurer, recipient };
 
         _mockFixture.PayoutRepository.Setup(p => p.GetByIdWithDetailsAsync(payout.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(payout);
@@ -400,23 +420,29 @@ public class PayoutServiceTests
     {
         // Arrange (GW-06: Immutable ledger)
         var treasurerUserId = Guid.NewGuid().ToString();
+        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
+
         var treasurer = TestDataBuilder.BuildMember(
+            groupId: group.Id,
             userId: treasurerUserId,
             role: MemberRole.Treasurer
         );
-        var recipient = TestDataBuilder.BuildMember(role: MemberRole.Member);
+        var recipient = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Member);
+        var chairperson = TestDataBuilder.BuildMember(groupId: group.Id, role: MemberRole.Chairperson);
+        group.Members = new List<Member> { treasurer, recipient, chairperson };
+
         var payout = TestDataBuilder.BuildPayout(
+            groupId: group.Id,
             recipientMemberId: recipient.Id,
+            initiatedByMemberId: chairperson.Id,
             amount: 5000,
             status: PayoutStatus.PendingApproval
         );
 
-        var group = TestDataBuilder.BuildGroup(currentBalance: 10000);
-        group.Members = new List<Member> { treasurer, recipient };
-
         _mockFixture.PayoutRepository.Setup(p => p.GetByIdWithDetailsAsync(payout.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(payout);
         _mockFixture.SetupGroupExists(group);
+        _mockFixture.SetupMemberExists(recipient);
         _mockFixture.SetupSuccessfulPayment();
 
         var request = new ApprovePayoutRequest("Approved by Treasurer");
@@ -429,7 +455,7 @@ public class PayoutServiceTests
         _mockFixture.WalletService.Verify(w => w.CreateLedgerEntryAsync(
             group.Id,
             recipient.Id,
-            5000,
+            -5000, // Negative amount for payout (money going out)
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string>(),

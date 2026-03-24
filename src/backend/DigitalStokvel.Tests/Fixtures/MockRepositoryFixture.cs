@@ -130,6 +130,8 @@ public class MockRepositoryFixture
     public void SetupMemberExists(Member member)
     {
         MemberRepository.Setup(r => r.GetByIdAsync(member.Id, It.IsAny<CancellationToken>())).ReturnsAsync(member);
+        MemberRepository.Setup(r => r.GetByGroupIdAndUserIdAsync(member.GroupId, member.UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(member);
     }
 
     /// <summary>
@@ -152,6 +154,13 @@ public class MockRepositoryFixture
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()
         )).ReturnsAsync(true);
+
+        CoreBankingClient.Setup(c => c.ExecuteEFTAsync(
+            It.IsAny<string>(),
+            It.IsAny<decimal>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()
+        )).ReturnsAsync(true);
     }
 
     /// <summary>
@@ -161,6 +170,13 @@ public class MockRepositoryFixture
     {
         CoreBankingClient.Setup(c => c.ExecutePaymentAsync(
             It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<decimal>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()
+        )).ReturnsAsync(false);
+
+        CoreBankingClient.Setup(c => c.ExecuteEFTAsync(
             It.IsAny<string>(),
             It.IsAny<decimal>(),
             It.IsAny<string>(),

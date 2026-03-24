@@ -94,25 +94,29 @@ public class ContributionService : IContributionService
 
                     // Update group balance
                     group.CurrentBalance += request.Amount;
+
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                    // Queue payment confirmation (CC-05)
+                    await _notificationService.QueuePaymentConfirmationAsync(contribution.Id, cancellationToken);
+
+                    _logger.LogInformation("Contribution {ContributionId} processed successfully", contribution.Id);
+
+                    return Result<ContributionResponse>.Success(MapToResponse(contribution, group.Name, member.FullName));
                 }
                 else
                 {
                     contribution.Status = ContributionStatus.Failed;
                     contribution.FailureReason = "Payment processing failed";
+
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                    _logger.LogWarning("Contribution {ContributionId} failed - payment processing failed", contribution.Id);
+
+                    return Result<ContributionResponse>.Failure("Payment processing failed");
                 }
-
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-                // Queue payment confirmation (CC-05)
-                if (contribution.Status == ContributionStatus.Completed)
-                {
-                    await _notificationService.QueuePaymentConfirmationAsync(contribution.Id, cancellationToken);
-                }
-
-                _logger.LogInformation("Contribution {ContributionId} processed with status {Status}", contribution.Id, contribution.Status);
-
-                return Result<ContributionResponse>.Success(MapToResponse(contribution, group.Name, member.FullName));
             }
             catch
             {

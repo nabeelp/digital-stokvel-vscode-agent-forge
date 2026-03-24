@@ -361,7 +361,11 @@ public class ContributionServiceTests
         var members = new List<Member> { member };
         _mockFixture.SetupGroupExists(group);
         _mockFixture.SetupMembersForGroup(group.Id, members);
-        _mockFixture.SetupFailedPayment();
+        _mockFixture.SetupSuccessfulPayment();
+
+        // Reset the SaveChangesAsync default setup and make it throw exception to trigger rollback
+        _mockFixture.UnitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Database error"));
 
         var request = new CreateContributionRequest(
             group.Id,
